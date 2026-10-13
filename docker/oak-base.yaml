@@ -1,0 +1,41 @@
+# Sling with Oak, shared by the two stacks: compose.arcadedb.yaml and compose.neo4j.yaml extend it ("extends") and add
+# what differs per graph database: its settings, the host port and the datastore volume. Not a stack of its own: run
+# one of the two compose files. Variables come from docker/.env.
+
+services:
+
+  oak:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SLING_IMAGE: ${SLING_IMAGE:-apache/sling:14}
+        OAK_VERSION: ${OAK_VERSION:-1.90.0}
+        COMPOSUM_TOOLS_VERSION: ${COMPOSUM_TOOLS_VERSION:-1.4.1}
+    image: oak-graph-sling:local
+    volumes:
+      # the OSGi framework cache: rebuilt on each start, so that a rebuilt image is used as is
+      - type: tmpfs
+        target: /opt/sling/launcher
+        tmpfs:
+          mode: 01777 # writable by the image's sling user
+
+  # Elasticsearch: Oak's elasticsearch indexes (index definitions of type elasticsearch, on the elastic-async lane).
+  # The version of Oak's Elasticsearch client (8.19 in Oak 1.90). Single node, no security (development only)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.19.23}
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTICSEARCH_VERSION:-8.19.23}
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'

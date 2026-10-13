@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.integratedsemantics.oak.graph</groupId>
+    <artifactId>oak-graph-store-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oak-graph-fragment</artifactId>
+  <packaging>bundle</packaging>
+  <name>Oak Graph Fragment</name>
+  <description>OSGi fragment of Oak's oak-store-document bundle holding the graph DocumentStores (oak-store-document
+    doesn't export the DocumentStore API), with the ArcadeDB and Neo4j client libraries embedded</description>
+
+  <dependencies>
+    <!-- inlined -->
+    <dependency>
+      <groupId>org.integratedsemantics.oak.graph</groupId>
+      <artifactId>oak-store-graph</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.integratedsemantics.oak.graph</groupId>
+      <artifactId>oak-store-arcadedb</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.integratedsemantics.oak.graph</groupId>
+      <artifactId>oak-store-neo4j</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- provided by the OSGi container (Sling): Oak, SLF4J, OSGi -->
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-store-document</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains</groupId>
+      <artifactId>annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>osgi.core</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Bundle-SymbolicName>org.integratedsemantics.oak.graph.fragment</Bundle-SymbolicName>
+            <!-- runs in the class loader of Oak's bundle: must match its exact version -->
+            <Fragment-Host>org.apache.jackrabbit.oak-store-document;bundle-version="[${oak.version},${oak.version}]"</Fragment-Host>
+            <Export-Package>org.integratedsemantics.oak.graph.osgi</Export-Package>
+            <Private-Package>org.integratedsemantics.oak.graph.*</Private-Package>
+            <!-- the client libraries (ArcadeDB, Neo4j driver with Netty and Reactor), private to the stores -->
+            <Embed-Dependency>*;scope=compile|runtime;groupId=!org.integratedsemantics.oak.graph;inline=false</Embed-Dependency>
+            <Embed-Transitive>true</Embed-Transitive>
+            <!-- not Oak's own document packages (the host's); the rest optional (unused parts of the libraries) -->
+            <Import-Package>!org.apache.jackrabbit.oak.plugins.document,!org.apache.jackrabbit.oak.plugins.document.*,*;resolution:=optional</Import-Package>
+            <_noimportjava>true</_noimportjava>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

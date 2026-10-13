@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-SymbolicName: org.integratedsemantics.oak.graph.poi-dom-imports
+Bundle-Name: DOM imports for the ServiceMix POI bundle (fragment)
+Bundle-Version: 0.1.0.SNAPSHOT
+Bundle-License: Apache-2.0
+Fragment-Host: org.apache.servicemix.bundles.poi
+Import-Package: org.w3c.dom,org.w3c.dom.events,org.w3c.dom.traversal,org.w3c.dom.svg;resolution:=optional

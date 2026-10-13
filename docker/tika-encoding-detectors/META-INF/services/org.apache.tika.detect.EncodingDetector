@@ -1,0 +1,5 @@
+# Tika encoding detectors (as listed in the tika-parsers bundle), made visible to tika-core: its DefaultEncodingDetector
+# looks them up with its own class loader, which cannot see the tika-parsers bundle (see docker/Dockerfile)
+org.apache.tika.parser.html.HtmlEncodingDetector
+org.apache.tika.parser.txt.UniversalEncodingDetector
+org.apache.tika.parser.txt.Icu4jEncodingDetector

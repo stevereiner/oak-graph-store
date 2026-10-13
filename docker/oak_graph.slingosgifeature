@@ -1,0 +1,148 @@
+{
+  "id": "org.integratedsemantics.oak.graph:oak-graph-sling:slingosgifeature:oak_graph:0.1.0-SNAPSHOT",
+  "title": "Sling with Oak on a graph database",
+  "description": "Apache Sling Starter 14 (with Composum Tools instead of Composum Nodes), its Oak repository stored in ArcadeDB or Neo4j: the oak_mongo feature without MongoDB, plus the graph DocumentStores, and Oak's Elasticsearch indexes instead of Lucene (an elasticsearch fulltext index of the repository)",
+  "prototype": {
+    "id": "org.apache.sling:org.apache.sling.starter:slingosgifeature:oak_mongo:14",
+    "removals": {
+      "bundles": [
+        "com.h2database:h2-mvstore:2.4.240",
+        "org.mongodb:mongodb-driver-sync:5.2.1",
+        "org.mongodb:bson:5.2.1",
+        "org.mongodb:mongodb-driver-core:5.2.1",
+        // Composum Nodes (deprecated, no longer maintained): replaced by Composum Tools, added below. To bring Nodes
+        // back (it has an ACL editor, which Tools doesn't have yet), delete these five lines and the two Composum
+        // configurations below
+        "com.composum.nodes:composum-nodes-commons:4.3.5",
+        "com.composum.nodes:composum-nodes-console:4.3.5",
+        "com.composum.nodes:composum-nodes-jslibs:4.3.5",
+        "com.composum.nodes:composum-nodes-pckgmgr:4.3.5",
+        "com.composum.nodes:composum-nodes-usermgr:4.3.5"
+      ],
+      "configurations": [
+        "org.apache.jackrabbit.oak.plugins.document.DocumentNodeStoreService",
+        // Fulltext in Elasticsearch, not Lucene: without its configuration, Sling doesn't create /oak:index/lucene.
+        // To use Lucene as well, delete this line (Sling then creates /oak:index/lucene at startup when it's missing).
+        // To use Lucene only, also remove the Elasticsearch parts below (marked "Lucene only"), and see the Compose
+        // files and the Dockerfile.
+        "org.apache.sling.jcr.oak.server.internal.index.LuceneIndexRepositoryInitializer",
+        // Composum Nodes' configurations (see above)
+        "org.apache.sling.jcr.base.internal.LoginAdminWhitelist.fragment~composum",
+        "com.composum.sling.core.proxy.GenericProxyRequest~health"
+      ]
+    }
+  },
+  "bundles": [
+    {
+      "id": "org.integratedsemantics.oak.graph:oak-graph-fragment:0.1.0-SNAPSHOT",
+      "start-order": "15"
+    },
+    {
+      "id": "org.integratedsemantics.oak.graph:oak-graph-sling:0.1.0-SNAPSHOT",
+      "start-order": "15"
+    },
+    // Libraries for Tika's text extraction (Sling Starter leaves them out): POI (Office, and the charset detection of
+    // text files), XMLBeans (docx, xlsx, pptx), Commons Compress, TagSoup (HTML). Started before Tika (start order 10),
+    // so that Tika's optional imports of them are wired
+    {
+      "id": "org.apache.servicemix.bundles:org.apache.servicemix.bundles.poi:5.2.2_3",
+      "start-order": "5"
+    },
+    {
+      "id": "org.apache.servicemix.bundles:org.apache.servicemix.bundles.xmlbeans:5.0.3_1",
+      "start-order": "5"
+    },
+    {
+      "id": "org.apache.commons:commons-compress:1.21",
+      "start-order": "5"
+    },
+    {
+      "id": "org.apache.servicemix.bundles:org.apache.servicemix.bundles.tagsoup:1.2.1_1",
+      "start-order": "5"
+    },
+    // the Log4j 2 API, which XMLBeans 5 requires, routed to Sling's logging (SLF4J)
+    {
+      "id": "org.apache.logging.log4j:log4j-api:2.24.3",
+      "start-order": "5"
+    },
+    {
+      "id": "org.apache.logging.log4j:log4j-to-slf4j:2.24.3",
+      "start-order": "5"
+    },
+    // the imports of org.w3c.dom that the ServiceMix POI bundle's manifest lacks, as a fragment of it (POI's OOXML support)
+    {
+      "id": "org.integratedsemantics.oak.graph:poi-dom-imports:0.1.0-SNAPSHOT",
+      "start-order": "1"
+    },
+    // Tika's encoding detectors, as a fragment of tika-core (see docker/Dockerfile): text extraction of text files
+    {
+      "id": "org.integratedsemantics.oak.graph:tika-encoding-detectors:0.1.0-SNAPSHOT",
+      "start-order": "1"
+    },
+    // Composum Tools (MIT): JCR browser and editor, package manager, user manager, dashboard. Built from source in
+    // the image (not on Maven Central yet), under its own coordinates
+    {
+      "id": "com.composum.tools:composum-tools-sling-bundle:1.4.1",
+      "start-order": "20"
+    },
+    // Oak's Elasticsearch indexes (patched, see docker/OakSearchElasticPatch.java). Lucene only: remove this bundle
+    {
+      "id": "org.integratedsemantics.oak.graph:oak-search-elastic:1.90.0",
+      "start-order": "15"
+    }
+  ],
+  "configurations": {
+    // Composum Tools pages: the Browser starts by itself, the others only when configured (an empty configuration
+    // is enough). Changes is the Browser's staged editing (create, delete, move, change properties)
+    "com.composum.sling.dashboard.impl.Dashboard": {},
+    "com.composum.sling.changes.Changes": {},
+    "com.composum.sling.packages.PackageManager": {},
+    "com.composum.sling.usermgr.UserManager": {},
+    // The Sling Starter page links to Composum Nodes' /bin/browser.html: redirect it to the Composum Tools browser
+    "org.apache.sling.jcr.repoinit.RepositoryInitializer~oak-graph-composum": {
+      "scripts": ["create path (nt:unstructured) /bin/browser\nset properties on /bin/browser\n  default sling:resourceType to \"sling:redirect\"\n  default sling:target to \"/apps/cpm/tools.browser\"\nend\nset ACL for everyone\n  allow jcr:read on /bin/browser\nend"]
+    },
+    "org.apache.felix.http": {
+      "org.apache.felix.jetty.relativeredirectallowed": false,
+      "org.osgi.service.http.port": "$[env:SLING_HTTP_PORT;type=Integer;default=8080]"
+    },
+    "org.apache.sling.auth.form.FormAuthenticationHandler": {
+      "preferReasonCode": true,
+      "form.login.form": "/starter.login.html",
+      "form.auth.name": "$[env:SLING_AUTH_COOKIE;default=sling.formauth]"
+    },
+    "org.apache.jackrabbit.oak.plugins.blob.datastore.FileDataStore": {
+      "path": "$[env:OAK_DATASTORE_PATH;default=/opt/sling/datastore]",
+      "minRecordLength:Integer": 4096
+    },
+    // Lucene only: remove the next three configurations (Elasticsearch connection, the elastic-async indexing lane,
+    // and the repoinit script creating /oak:index/fulltext), then delete that definition from the repository:
+    // curl -u admin:admin -F :operation=delete http://localhost:8180/oak:index/fulltext
+    "org.apache.jackrabbit.oak.plugins.index.elastic.ElasticIndexProviderService": {
+      "elasticsearch.scheme": "$[env:ELASTICSEARCH_SCHEME;default=http]",
+      "elasticsearch.host": "$[env:ELASTICSEARCH_HOST;default=localhost]",
+      "elasticsearch.port": "$[env:ELASTICSEARCH_PORT;default=9200]",
+      "indexPrefix": "$[env:OAK_ELASTIC_INDEX_PREFIX;default=oak]"
+    },
+    "org.apache.jackrabbit.oak.plugins.index.AsyncIndexerService": {
+      "asyncConfigs": ["elastic-async:5"]
+    },
+    "org.apache.sling.jcr.repoinit.RepositoryInitializer~oak-graph-elastic": {
+      "scripts": ["create path /oak:index/fulltext(nt:unstructured)/indexRules(nt:unstructured)/nt:base(nt:unstructured)/properties(nt:unstructured)/allProps(nt:unstructured)\ncreate path /oak:index/fulltext/indexRules/nt:base/properties/jcr:createdBy(nt:unstructured)\ncreate path /oak:index/fulltext/indexRules/nt:base/properties/jcr:lastModifiedBy(nt:unstructured)\ncreate path /oak:index/fulltext/indexRules/nt:base/properties/sling:alias(nt:unstructured)\ncreate path /oak:index/fulltext/indexRules/nt:base/properties/sling:resourceType(nt:unstructured)\ncreate path /oak:index/fulltext/indexRules/nt:base/properties/sling:vanityPath(nt:unstructured)\nset properties on /oak:index/fulltext\n  default type to \"elasticsearch\"\n  default async to \"elastic-async\"\n  default includePropertyTypes to \"String\", \"Binary\"\n  default reindex{Boolean} to true\nend\nset properties on /oak:index/fulltext/indexRules/nt:base\n  default includePropertyTypes to \"String\", \"Binary\"\nend\nset properties on /oak:index/fulltext/indexRules/nt:base/properties/allProps\n  default name to \"^[^\\\\/]*$\"\n  default isRegexp{Boolean} to true\n  default nodeScopeIndex{Boolean} to true\n  default analyzed{Boolean} to true\n  default useInExcerpt{Boolean} to true\n  default propertyIndex{Boolean} to false\nend\nset properties on /oak:index/fulltext/indexRules/nt:base/properties/jcr:createdBy\n  default name to \"jcr:createdBy\"\n  default index{Boolean} to false\nend\nset properties on /oak:index/fulltext/indexRules/nt:base/properties/jcr:lastModifiedBy\n  default name to \"jcr:lastModifiedBy\"\n  default index{Boolean} to false\nend\nset properties on /oak:index/fulltext/indexRules/nt:base/properties/sling:alias\n  default name to \"sling:alias\"\n  default index{Boolean} to false\nend\nset properties on /oak:index/fulltext/indexRules/nt:base/properties/sling:resourceType\n  default name to \"sling:resourceType\"\n  default index{Boolean} to false\nend\nset properties on /oak:index/fulltext/indexRules/nt:base/properties/sling:vanityPath\n  default name to \"sling:vanityPath\"\n  default index{Boolean} to false\nend\nensure nodes /oak:index/fulltext(oak:QueryIndexDefinition)"]
+    },
+    "org.integratedsemantics.oak.graph.sling.GraphNodeStoreService": {
+      "backend": "$[env:OAK_GRAPH_BACKEND;default=arcadedb]",
+      "clusterId": "$[env:OAK_CLUSTER_ID;default=0]",
+      "arcadedb.host": "$[env:ARCADEDB_HOST;default=localhost]",
+      "arcadedb.port": "$[env:ARCADEDB_PORT;default=2480]",
+      "arcadedb.database": "$[env:ARCADEDB_DATABASE;default=oak]",
+      "arcadedb.username": "$[env:ARCADEDB_USERNAME;default=root]",
+      "arcadedb.password": "$[env:ARCADEDB_PASSWORD;default=playwithdata]",
+      "neo4j.uri": "$[env:NEO4J_URI;default=bolt://localhost:7687]",
+      "neo4j.username": "$[env:NEO4J_USERNAME;default=neo4j]",
+      "neo4j.password": "$[env:NEO4J_PASSWORD;default=password]",
+      "neo4j.database": "$[env:NEO4J_DATABASE;default=]",
+      "neo4j.labelPrefix": "$[env:NEO4J_LABEL_PREFIX;default=Oak]"
+    }
+  }
+}

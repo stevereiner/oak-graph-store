@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <!-- stack traces cut to their first 3 lines: many tests provoke exceptions on purpose (%ex for full traces) -->
+      <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n%ex{3}</pattern>
+    </encoder>
+  </appender>
+  <logger name="org.integratedsemantics.oak.graph" level="INFO" />
+  <logger name="org.testcontainers" level="INFO" />
+  <!-- to see the SQL: -->
+  <!-- <logger name="org.integratedsemantics.oak.graph.arcadedb.ArcadeDBDocumentStore" level="TRACE" /> -->
+  <root level="WARN">
+    <appender-ref ref="console" />
+  </root>
+</configuration>

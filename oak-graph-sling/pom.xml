@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.integratedsemantics.oak.graph</groupId>
+    <artifactId>oak-graph-store-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oak-graph-sling</artifactId>
+  <packaging>bundle</packaging>
+  <name>Oak Graph Sling</name>
+  <description>OSGi component (Sling) starting Oak's DocumentNodeStore on ArcadeDB or Neo4j, through the
+    oak-graph-fragment</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.integratedsemantics.oak.graph</groupId>
+      <artifactId>oak-graph-fragment</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-blob</artifactId>
+      <version>${oak.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.service.component.annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Bundle-SymbolicName>org.integratedsemantics.oak.graph.sling</Bundle-SymbolicName>
+            <Private-Package>org.integratedsemantics.oak.graph.sling</Private-Package>
+            <Export-Package>!*</Export-Package>
+            <_noimportjava>true</_noimportjava>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

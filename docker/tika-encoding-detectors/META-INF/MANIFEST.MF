@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-SymbolicName: org.integratedsemantics.oak.graph.tika-encoding-detectors
+Bundle-Name: Tika encoding detectors for tika-core (fragment)
+Bundle-Version: 0.1.0.SNAPSHOT
+Bundle-License: Apache-2.0
+Fragment-Host: org.apache.tika.core
+Import-Package: org.apache.tika.parser.html,org.apache.tika.parser.txt

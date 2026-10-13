@@ -1,0 +1,85 @@
+# Sling (Oak, Composum Tools) with its repository in ArcadeDB:
+#
+#   docker compose -f docker/compose.arcadedb.yaml up --build
+#
+# Sling on :8180, ArcadeDB Studio on :2490, Kibana on :5607.
+#
+# Sling login: admin / admin. Composum Tools (repository UI): http://localhost:8180/apps/cpm/tools.dashboard.html
+# The versions, logins and host ports are in docker/.env. The Neo4j stack (compose.neo4j.yaml) can run at the same time.
+#
+# The services: ArcadeDB, Elasticsearch (with Kibana), and Sling with Oak (defined in oak-base.yaml; this file adds the
+# ArcadeDB and Elasticsearch settings, the host ports and the volumes). Oak keeps everything in its repository, so there
+# is no other database: content, users and groups (/home), permissions, node types, index definitions and property index
+# data, Sling's scripts and content (/apps, /libs, /conf) are all nodes in ArcadeDB. Outside it: the binaries, in the
+# datastore volume, and the fulltext index (/oak:index/fulltext, of type elasticsearch, instead of Sling's Lucene
+# index), in Elasticsearch. Stop with "stop" (or "down"): the volumes are kept. "down -v" deletes them: all the content.
+
+name: oak-graph-arcadedb
+
+services:
+
+  arcadedb:
+    image: arcadedata/arcadedb:${ARCADEDB_VERSION:-26.10.1}
+    environment:
+      # the password of the server's admin user, root
+      JAVA_OPTS: >-
+        -Darcadedb.server.rootPassword=${ARCADEDB_PASSWORD:-playwithdata}
+        -Darcadedb.server.defaultDatabases=oak[root]
+    ports:
+      - "${ARCADEDB_HTTP_PORT:-2490}:2480"
+    volumes:
+      - arcadedb-databases:/home/arcadedb/databases
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:2480/api/v1/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Oak's fulltext index (/oak:index/fulltext). To use Lucene only (see docker/oak_graph.slingosgifeature), remove
+  # elasticsearch and kibana, the oak service's dependency on elasticsearch and its ELASTICSEARCH_HOST, and the
+  # elasticsearch-data volume
+  elasticsearch:
+    extends: { file: oak-base.yaml, service: elasticsearch }
+    ports:
+      - "${OAK_ARCADEDB_ELASTICSEARCH_PORT:-9206}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+  kibana:
+    extends: { file: oak-base.yaml, service: kibana }
+    depends_on:
+      - elasticsearch
+    ports:
+      - "${OAK_ARCADEDB_KIBANA_PORT:-5607}:5601"
+
+  oak:
+    extends: { file: oak-base.yaml, service: oak }
+    depends_on:
+      arcadedb:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      OAK_GRAPH_BACKEND: arcadedb
+      # Sling listens on the host port, so that the URLs it builds match the browser's (Composum Nodes required it)
+      SLING_HTTP_PORT: ${SLING_ARCADEDB_PORT:-8180}
+      # its own login cookie: browsers share cookies between the ports of localhost
+      SLING_AUTH_COOKIE: sling.formauth.oak-arcadedb
+      ARCADEDB_HOST: arcadedb
+      ARCADEDB_DATABASE: oak
+      ARCADEDB_USERNAME: ${ARCADEDB_USERNAME:-root}
+      ARCADEDB_PASSWORD: ${ARCADEDB_PASSWORD:-playwithdata}
+      ELASTICSEARCH_HOST: elasticsearch
+    ports:
+      - "${SLING_ARCADEDB_PORT:-8180}:${SLING_ARCADEDB_PORT:-8180}"
+    volumes:
+      - oak-datastore:/opt/sling/datastore
+
+# Three volumes (Docker names them oak-graph-arcadedb_<name>). Keep or delete them together: a node's properties are in
+# ArcadeDB, its binaries in the datastore, and the elasticsearch indexes in Elasticsearch.
+volumes:
+  arcadedb-databases:   # ArcadeDB's graph data (database oak): all the repository's nodes (OakNode vertices, CHILD_OF
+                        # edges), and Oak's own records: cluster nodes, settings, journal
+  oak-datastore:        # Oak's file data store: the binaries of 4 KB or more (files); smaller ones are stored
+                        # in the nodes
+  elasticsearch-data:   # Elasticsearch's data: the elasticsearch indexes (rebuilt by reindexing if lost)

@@ -1,0 +1,241 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.integratedsemantics.oak.graph</groupId>
+  <artifactId>oak-graph-store-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>Oak Graph Store - Parent</name>
+  <description>Prototype Jackrabbit Oak DocumentStore implementations storing Oak's node documents in graph databases
+    (ArcadeDB first, Neo4j later)</description>
+
+  <modules>
+    <module>oak-store-graph</module>
+    <module>oak-store-arcadedb</module>
+    <module>oak-store-neo4j</module>
+    <!-- OSGi (Sling): build with the Oak version of the target, e.g. -Doak.version=1.90.0 for Sling Starter 14 -->
+    <module>oak-graph-fragment</module>
+    <module>oak-graph-sling</module>
+  </modules>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <oak.version>2.6.0</oak.version>
+    <!-- ArcadeDB client version; also the default Docker image tag used by the tests -->
+    <arcadedb.version>26.10.1</arcadedb.version>
+    <!-- Neo4j server version of the tests' Docker image (neo4j:${neo4j.version}; never an embedded Neo4j); the Docker
+         Compose's Neo4j is NEO4J_VERSION in docker/.env: change both together -->
+    <neo4j.version>2026.09.0</neo4j.version>
+    <!-- Neo4j Java driver (Apache 2.0) -->
+    <neo4j-driver.version>6.3.0</neo4j-driver.version>
+    <testcontainers.version>2.0.5</testcontainers.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.integratedsemantics.oak.graph</groupId>
+        <artifactId>oak-store-graph</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.integratedsemantics.oak.graph</groupId>
+        <artifactId>oak-store-graph</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-store-document</artifactId>
+        <version>${oak.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-store-document</artifactId>
+        <version>${oak.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-core</artifactId>
+        <version>${oak.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-jcr</artifactId>
+        <version>${oak.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-commons</artifactId>
+        <version>${oak.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-store-spi</artifactId>
+        <version>${oak.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>com.arcadedb</groupId>
+        <artifactId>arcadedb-network</artifactId>
+        <version>${arcadedb.version}</version>
+        <exclusions>
+          <!-- the remote client only needs the engine's core classes: drop the heavy engine extras -->
+          <exclusion>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.graalvm.js</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.graalvm.truffle</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.github.jbellis</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.locationtech.jts</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <!-- leave the SLF4J binding choice to the application -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.neo4j.driver</groupId>
+        <artifactId>neo4j-java-driver</artifactId>
+        <version>${neo4j-driver.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-neo4j</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <!-- managed by Oak 2.x's parent, not by 1.x's: pinned to build against both -->
+        <groupId>org.hamcrest</groupId>
+        <artifactId>hamcrest</artifactId>
+        <version>2.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>osgi.core</artifactId>
+        <version>8.0.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.service.component.annotations</artifactId>
+        <version>1.5.1</version>
+      </dependency>
+      <!-- versions of Oak's own dependencies and test dependencies -->
+      <dependency>
+        <groupId>org.apache.jackrabbit</groupId>
+        <artifactId>oak-parent</artifactId>
+        <version>${oak.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- pinned: without versions, Maven 3 picks the newest releases, skips the Maven 4 betas with warnings, and
+             can use different versions in one build -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>3.2.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>3.2.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.14.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.5.5</version>
+          <configuration>
+            <!-- each test class's output (logs, the stack traces of expected exceptions) goes to
+                 target/surefire-reports/<class>-output.txt (failsafe-reports for the *IT tests), not to the console -->
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <systemPropertyVariables>
+              <!-- java.util.logging (the Neo4j driver logs through it) at WARNING: src/test/resources/logging.properties -->
+              <java.util.logging.config.file>${project.build.testOutputDirectory}/logging.properties</java.util.logging.config.file>
+            </systemPropertyVariables>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>6.0.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>3.5.5</version>
+          <configuration>
+            <!-- each test class's output (logs, the stack traces of expected exceptions) goes to
+                 target/surefire-reports/<class>-output.txt (failsafe-reports for the *IT tests), not to the console -->
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <systemPropertyVariables>
+              <!-- java.util.logging (the Neo4j driver logs through it) at WARNING: src/test/resources/logging.properties -->
+              <java.util.logging.config.file>${project.build.testOutputDirectory}/logging.properties</java.util.logging.config.file>
+            </systemPropertyVariables>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+</project>

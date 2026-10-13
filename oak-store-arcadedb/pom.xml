@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.integratedsemantics.oak.graph</groupId>
+    <artifactId>oak-graph-store-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oak-store-arcadedb</artifactId>
+  <name>Oak Store ArcadeDB</name>
+  <description>Jackrabbit Oak DocumentStore storing the node documents in ArcadeDB (Java remote API)</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.integratedsemantics.oak.graph</groupId>
+      <artifactId>oak-store-graph</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-store-document</artifactId>
+    </dependency>
+    <dependency>
+      <!-- ArcadeDB Java remote API (Apache 2.0) -->
+      <groupId>com.arcadedb</groupId>
+      <artifactId>arcadedb-network</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <!-- @NotNull / @Nullable of Oak's interfaces -->
+      <groupId>org.jetbrains</groupId>
+      <artifactId>annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Test dependencies: the shared abstract tests, Oak's DocumentStore test suite and what it needs -->
+    <dependency>
+      <groupId>org.integratedsemantics.oak.graph</groupId>
+      <artifactId>oak-store-graph</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-store-document</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- JCR-level tests: a JCR repository on a DocumentNodeStore on ArcadeDB -->
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-jcr</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-commons</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jackrabbit</groupId>
+      <artifactId>oak-store-spi</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- referenced by Oak's test fixtures (MongoDB, RDB) even when not used -->
+      <groupId>org.mongodb</groupId>
+      <artifactId>mongodb-driver-sync</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>2.1.214</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.tomcat</groupId>
+      <artifactId>tomcat-jdbc</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- tests start the ArcadeDB Docker image (unless an external server is configured) -->
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- default image tag of the ArcadeDB container: the client version -->
+            <oak.test.arcadedb.version>${arcadedb.version}</oak.test.arcadedb.version>
+            <!-- By default an ArcadeDB Docker container is started with Testcontainers (Docker needed), image
+                 arcadedata/arcadedb:${arcadedb.version} (as the Docker stacks); another image:
+                 -Doak.test.arcadedb.image=<image>. To test against an external server
+                 (local or remote, Docker or standalone), uncomment these lines or pass them with -D. The database must
+                 exist and be dedicated to the tests (its documents are deleted). -->
+            <!-- <oak.test.arcadedb.host>localhost</oak.test.arcadedb.host> -->
+            <!-- <oak.test.arcadedb.port>2480</oak.test.arcadedb.port> -->
+            <!-- <oak.test.arcadedb.database>oak-test</oak.test.arcadedb.database> -->
+            <!-- <oak.test.arcadedb.username>root</oak.test.arcadedb.username> -->
+            <!-- <oak.test.arcadedb.password>playwithdata</oak.test.arcadedb.password> -->
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <!-- mvn install -Pit: also runs the *IT stress tests (Oak's ConcurrentQueryAnd*IT: thousands of updates over
+           HTTP, minutes each) -->
+      <id>it</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <oak.test.arcadedb.version>${arcadedb.version}</oak.test.arcadedb.version>
+              </systemPropertyVariables>
+            </configuration>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+</project>

@@ -1,0 +1,85 @@
+# Sling (Oak, Composum Tools) with its repository in Neo4j:
+#
+#   docker compose -f docker/compose.neo4j.yaml up --build
+#
+# Sling on :8181, Neo4j Browser on :7475, Kibana on :5608.
+# Sling login: admin / admin. Composum Tools (repository UI): http://localhost:8181/apps/cpm/tools.dashboard.html
+# The versions, logins and host ports are in docker/.env. The ArcadeDB stack (compose.arcadedb.yaml) can run at the
+# same time.
+#
+# The services: Neo4j, Elasticsearch (with Kibana), and Sling with Oak (defined in oak-base.yaml; this file adds the
+# Neo4j and Elasticsearch settings, the host ports and the volumes). Oak keeps everything in its repository, so there is
+# no other database: content, users and groups (/home), permissions, node types, index definitions and property index
+# data, Sling's scripts and content (/apps, /libs, /conf) are all nodes in Neo4j. Outside it: the binaries, in the
+# datastore volume, and the fulltext index (/oak:index/fulltext, of type elasticsearch, instead of Sling's Lucene
+# index), in Elasticsearch. Stop with "stop" (or "down"): the volumes are kept. "down -v" deletes them: all the content.
+
+name: oak-graph-neo4j
+
+services:
+
+  neo4j:
+    image: neo4j:${NEO4J_VERSION:-2026.09.0}
+    environment:
+      # the image sets the password of its admin user, which must be neo4j
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-password}
+      # Neo4j Browser connects to the advertised Bolt address: the host port (not another Neo4j on 7687)
+      NEO4J_server_bolt_advertised__address: localhost:${NEO4J_BOLT_PORT:-7690}
+    ports:
+      - "${NEO4J_HTTP_PORT:-7475}:7474"
+      - "${NEO4J_BOLT_PORT:-7690}:7687"
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$${NEO4J_AUTH#neo4j/}\" 'RETURN 1' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  # Oak's fulltext index (/oak:index/fulltext). To use Lucene only (see docker/oak_graph.slingosgifeature), remove
+  # elasticsearch and kibana, the oak service's dependency on elasticsearch and its ELASTICSEARCH_HOST, and the
+  # elasticsearch-data volume
+  elasticsearch:
+    extends: { file: oak-base.yaml, service: elasticsearch }
+    ports:
+      - "${OAK_NEO4J_ELASTICSEARCH_PORT:-9207}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+  kibana:
+    extends: { file: oak-base.yaml, service: kibana }
+    depends_on:
+      - elasticsearch
+    ports:
+      - "${OAK_NEO4J_KIBANA_PORT:-5608}:5601"
+
+  oak:
+    extends: { file: oak-base.yaml, service: oak }
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      OAK_GRAPH_BACKEND: neo4j
+      # Sling listens on the host port, so that the URLs it builds match the browser's (Composum Nodes required it)
+      SLING_HTTP_PORT: ${SLING_NEO4J_PORT:-8181}
+      # its own login cookie: browsers share cookies between the ports of localhost
+      SLING_AUTH_COOKIE: sling.formauth.oak-neo4j
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
+      ELASTICSEARCH_HOST: elasticsearch
+    ports:
+      - "${SLING_NEO4J_PORT:-8181}:${SLING_NEO4J_PORT:-8181}"
+    volumes:
+      - oak-datastore:/opt/sling/datastore
+
+# Three volumes (Docker names them oak-graph-neo4j_<name>). Keep or delete them together: a node's properties are in
+# Neo4j, its binaries in the datastore, and the elasticsearch indexes in Elasticsearch.
+volumes:
+  neo4j-data:           # Neo4j's graph data: all the repository's nodes (OakNode nodes, CHILD_OF relationships), and
+                        # Oak's own records: cluster nodes, settings, journal
+  oak-datastore:        # Oak's file data store: the binaries of 4 KB or more (files); smaller ones are stored
+                        # in the nodes
+  elasticsearch-data:   # Elasticsearch's data: the elasticsearch indexes (rebuilt by reindexing if lost)
