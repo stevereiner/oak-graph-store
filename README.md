@@ -1,10 +1,12 @@
 # oak-graph-store
 
 Prototype [Apache Jackrabbit Oak](https://jackrabbit.apache.org/oak/docs/) `DocumentStore` implementations that keep
-Oak's node documents (the nodes and their properties, what the MongoDB and RDB document stores hold) in graph
-databases: [ArcadeDB](https://arcadedb.com/) and [Neo4j](https://neo4j.com/) (or AuraDB). Binaries (blobs) stay in
-Oak's blob store as usual (in the Docker Composes, its file data store). Sibling project of
-[nuxeo-graph-storage](https://github.com/stevereiner/nuxeo-graph-storage), which does the same for Nuxeo.
+Oak's **nodes**, **folders and files** alike (the whole content tree), and their properties in **graph databases**:
+[ArcadeDB](https://arcadedb.com/) and [Neo4j](https://neo4j.com/) (or AuraDB). In JCR a folder (`nt:folder`,
+`sling:Folder`) and a file (`nt:file`, with its `jcr:content`) are nodes like any other, so each is a graph node,
+linked to its parent by a `CHILD_OF` edge. The stores hold what Oak's MongoDB and RDB document stores hold: the node
+documents. Binaries (blobs) stay in Oak's blob store as usual (in the Docker Composes, its file data store). Sibling
+project of [nuxeo-graph-storage](https://github.com/stevereiner/nuxeo-graph-storage), which does the same for Nuxeo.
 
 Apache Jackrabbit Oak is a general-purpose content repository for Java content applications, with the JCR API: a
 hierarchy of typed nodes, versioning, access control, queries and indexes, observation. It has a long history in web
@@ -14,8 +16,8 @@ since AEM 6 AEM is built on Oak, under Apache Sling. This project moves Oak's no
 MongoDB or a SQL database, with Oak and the JCR API unchanged above it.
 
 Status: **prototype**. Both stores pass the Oak test classes that apply to a document store, the ones Oak runs
-against its MongoDB and RDB stores (a selection of Oak's tests, not its whole suite; see [Tests](#tests)), and run
-Sling with its whole repository in the graph database, with the Composum Tools repository UI (see
+against its MongoDB and RDB stores (a selection of Oak's tests, not its whole suite; see [Tests](#tests)). Sling and
+the Composum Tools repository UI work with the whole repository in the graph databases (see
 [Docker Composes](#docker-composes)).
 
 ## Why
@@ -29,7 +31,7 @@ apply to the web content management built on top of it:
 - **WCM, headless content, digital experience:** WCM products and applications are built on Oak (AEM, Sling
   applications). Web content is connected: pages are built from components, which show assets and content fragments,
   reused across pages, sites and languages, with templates, translations and live copies. With these references as edges (a
-  [possible feature](#possible-feature-jcr-references)), "which pages, in which sites and languages, show this asset?"
+  [possible feature](#jcr-references-as-edges)), "which pages, in which sites and languages, show this asset?"
   or "what must be published with this page?" become graph traversals. For applications on Oak and Sling, headless
   delivery, and other JCR applications. Tested with the Sling Starter, not with AEM, which brings its own Oak version
   and requirements.
@@ -105,6 +107,17 @@ on Oak 1.90.0 (`-Doak.version=1.90.0`), the Oak of Sling Starter 14.
 | node document | document in `nodes` | `OakNode` vertex | `OakNode` node | node (with its properties) |
 | `DocumentStore` | `MongoDocumentStore` | `ArcadeDBDocumentStore` | `Neo4jDocumentStore` | (below the JCR API) |
 | blob store | GridFS / blobs collection | unchanged (Oak blob/data store) | unchanged | binary property values |
+
+## How it plugs into Oak
+
+Oak's `DocumentNodeStore` runs unchanged and provides the `NodeStore` that Oak, JCR and Sling use; this project
+implements the `DocumentStore` interface below it (find, query, create, conditional update and remove of node
+documents), as Oak's `MongoDocumentStore` and `RDBDocumentStore` do. Every JCR node is a node document: folders
+(`nt:folder`, `sling:Folder`, `sling:OrderedFolder`), files (`nt:file` and their `jcr:content`), pages and other
+content alike, so the whole tree is in the graph, each node linked to its parent by a `CHILD_OF` edge. In Sling, the
+stores are a fragment of Oak's `oak-store-document` bundle, and the `oak-graph-sling` component registers the
+`DocumentNodeStore` in place of Oak's `DocumentNodeStoreService` (see
+[How it plugs into Sling](#how-it-plugs-into-sling)).
 
 ## Common design
 
@@ -320,7 +333,9 @@ Each link keeps its native meaning (property name, strong or weak, order) rather
 GraphRAG pipeline reading the graph can use it. The edge types are shared with the other graph projects, so graphs
 from several content repositories can be queried alike.
 
-### Possible feature: JCR references
+## Possible features
+
+### JCR references as edges
 
 `REFERENCE`, `WEAKREFERENCE` and `PATH` properties as `REFERENCES` edges, typed by the content model (the node types
 say which properties are references). They can't be maintained in the `DocumentStore` like `CHILD_OF`: there, property
@@ -328,6 +343,18 @@ values are revision-stamped entries that may belong to uncommitted or rolled-bac
 committed changes (an Oak `Observer`) could, and this project avoids such a projection layer for now. Oak already
 enforces referential integrity for strong references; the edges would only mirror it. `nt:linkedFile` would be
 covered, as its `jcr:content` is a `REFERENCE`.
+
+### A NodeStore implementation
+
+The stores implement Oak's `DocumentStore`, below Oak's own `DocumentNodeStore`, which supplies what a `NodeStore`
+needs: revisions and multi-version concurrency, conflict handling, clustering (leases, the journal), checkpoints (for
+asynchronous indexing), revision garbage collection, branch commits for large changes. A `NodeStore` implemented
+directly on the graph database, as Oak's segment and memory stores are (neither of them clustered), would have to
+provide these itself. In return the graph would hold the content as it is: plain property values instead of Oak's
+revision maps (JSON strings in Neo4j, embedded maps in ArcadeDB), and no journal records or split "previous"
+documents, so Cypher queries and GraphRAG pipelines could read it directly. Such a store sees committed changes, so it
+could also maintain the [JCR references as edges](#jcr-references-as-edges). Applications wouldn't change: they use a
+`NodeStore` either way.
 
 ## Tests
 
